@@ -3,10 +3,41 @@
 
 # include <type_traits>
 # include <array>
+# include <cassert>
 # include "fake_instance.h"
 
 namespace broken_algo
 {
+
+template <typename From, typename To>
+struct apply_ref_from_to;
+
+template <typename From, typename To>
+struct apply_ref_from_to<From&, To>
+{
+    typedef To& type;
+};
+
+template <typename From, typename To>
+struct apply_ref_from_to<const From&&, To>
+{
+    typedef const To&& type;
+};
+
+template <typename From, typename To>
+struct apply_ref_from_to<const From&, To>
+{
+    typedef const To& type;
+};
+
+template <typename From, typename To>
+struct apply_ref_from_to<From&&, To>
+{
+    typedef To&& type;
+};
+
+template <typename From, typename To>
+using apply_ref_from_to_t = typename apply_ref_from_to<From, To>::type;
 
 template <typename T, template <typename...> class Storage>
 struct breaker_t;
@@ -57,6 +88,54 @@ struct breaker_t : private Storage<breaker_t<T, Storage> >
     breaker_t(U&& cpy)
         : t_{new (this->internal()) T(std::forward<U>(cpy))}
     {}
+
+    template <typename U,
+              typename std::enable_if<
+                  std::is_same<
+                      typename std::decay<U>::type, T
+                      >::value
+                  >::type* = nullptr
+              >
+    breaker_t &operator=(U&& cpy)
+    {
+        if (t_)
+        {
+            t_->~T();
+        }
+        t_ = new (this->internal()) T(std::forward<U>(cpy));
+        return *this;
+    }
+
+    template <typename U,
+              typename std::enable_if<
+                  std::is_same<
+                      typename std::decay<U>::type, breaker_t<T>
+                      >::value
+                  >::type* = nullptr
+              >
+    breaker_t(U&& rhs)
+        : t_(rhs.t_ ? new (this->internal()) T(static_cast<apply_ref_from_to_t<U, T> >(*rhs.t_)) : nullptr)
+    {}
+
+    template <typename U,
+              typename std::enable_if<
+                  std::is_same<
+                      typename std::decay<U>::type, breaker_t<T>
+                      >::value
+                  >::type* = nullptr
+              >
+    breaker_t &operator=(U&& rhs)
+    {
+        if (this != &rhs)
+        {
+            if (t_)
+            {
+                t_->~T();
+            }
+            t_ = rhs.t_ ? new (this->internal()) T(static_cast<apply_ref_from_to_t<U, T> >(*rhs.t_)) : nullptr;
+        }
+        return *this;
+    }
 
     // returns false if must break
     template <typename Dumy = int>

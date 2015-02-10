@@ -21,4 +21,24 @@ int main()
         return breaker;
     }
     );
+
+    broken_algo::any_of(l.begin(), l.end(),
+             [](auto elem) -> breaker_t<bool> {
+        do
+        {
+            if (elem == 4)
+            {
+                break;
+            }
+            std::cout << elem << std::endl;
+            return false;
+        } while (0);
+        return breaker;
+    }
+    );
+
+
+    breaker_t<bool> b(false);
+    breaker_t<bool> b2 = b;
+    b2 = b;
 }

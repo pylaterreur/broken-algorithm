@@ -29,14 +29,14 @@ auto for_each(InputIterator first, InputIterator last, Function fn)
 
 template<class InputIterator, class UnaryPredicate>
 auto any_of(InputIterator first, InputIterator last, UnaryPredicate pred)
--> std::enable_if_t<!is_breaker<decltype(fn(*first))>::value, bool>
+-> std::enable_if_t<!is_breaker<decltype(pred(*first))>::value, bool>
 {
     return std::any_of(first, last, pred);
 }
 
 template<class InputIterator, class UnaryPredicate>
 auto any_of(InputIterator first, InputIterator last, UnaryPredicate pred)
--> std::enable_if_t<is_breaker<decltype(fn(*first))>::value, bool>
+-> std::enable_if_t<is_breaker<decltype(pred(*first))>::value, bool>
 {
   while (first!=last) {
     auto ret = pred(*first);
