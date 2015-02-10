@@ -8,7 +8,7 @@ int main()
 {
     std::vector<int> l = {1, 2, 3, 4, 5};
     broken_algo::for_each(l.begin(), l.end(),
-             [](auto elem) -> breaker_t<int> {
+             [](auto elem) -> breaker_t<void> {
         do
         {
             if (elem == 3)
