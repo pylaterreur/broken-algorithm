@@ -4,6 +4,10 @@
 
 using namespace broken_algo;
 
+template <typename T>
+struct my_breaker_default_storage : breaker_default_storage<T>
+{};
+
 int main()
 {
     std::vector<int> l = {1, 2, 3, 4, 5};
@@ -38,7 +42,7 @@ int main()
     );
 
 
-    breaker_t<bool> b(false);
+    breaker_t<bool, my_breaker_default_storage> b(false);
     breaker_t<bool> b2 = b;
     b2 = b;
 }

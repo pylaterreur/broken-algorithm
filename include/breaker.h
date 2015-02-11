@@ -42,6 +42,14 @@ using apply_ref_from_to_t = typename apply_ref_from_to<From, To>::type;
 template <typename T, template <typename...> class Storage>
 struct breaker_t;
 
+template <typename T>
+struct is_breaker : std::false_type
+{};
+
+template <typename T, template <typename...> class Storage>
+struct is_breaker<breaker_t<T, Storage> > : std::true_type
+{};
+
 template <typename breaker>
 struct breaker_underlying_type;
 
@@ -75,6 +83,9 @@ private:
 template <typename T, template <typename...> class Storage = breaker_default_storage>
 struct breaker_t : private Storage<breaker_t<T, Storage> >
 {
+    template <typename, template <typename...> class>
+    friend class breaker_t;
+
     constexpr breaker_t() : t_(nullptr)
     {}
 
@@ -108,9 +119,8 @@ struct breaker_t : private Storage<breaker_t<T, Storage> >
 
     template <typename U,
               typename std::enable_if<
-                  std::is_same<
-                      typename std::decay<U>::type, breaker_t<T>
-                      >::value
+                  is_breaker<typename std::decay<U>::type>::value
+                  && std::is_same<typename breaker_underlying_type<typename std::decay<U>::type>::type, T>::value
                   >::type* = nullptr
               >
     breaker_t(U&& rhs)
@@ -119,14 +129,13 @@ struct breaker_t : private Storage<breaker_t<T, Storage> >
 
     template <typename U,
               typename std::enable_if<
-                  std::is_same<
-                      typename std::decay<U>::type, breaker_t<T>
-                      >::value
+                  is_breaker<typename std::decay<U>::type>::value
+                  && std::is_same<typename breaker_underlying_type<typename std::decay<U>::type>::type, T>::value
                   >::type* = nullptr
               >
     breaker_t &operator=(U&& rhs)
     {
-        if (this != &rhs)
+        if (t_ != rhs.t_)
         {
             if (t_)
             {
@@ -239,14 +248,6 @@ struct breaker_t<no_br, Storage>
         return breaker_t<void, Storage2>(true);
     }
 };
-
-template <typename T>
-struct is_breaker : std::false_type
-{};
-
-template <typename T, template <typename...> class Storage>
-struct is_breaker<breaker_t<T, Storage> > : std::true_type
-{};
 
 constexpr breaker_t<br> breaker;
 constexpr breaker_t<no_br> no_breaker;
