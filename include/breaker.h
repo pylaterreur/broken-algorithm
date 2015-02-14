@@ -111,9 +111,12 @@ struct breaker_t : private Storage<breaker_t<T, Storage> >
     {
         if (t_)
         {
-            t_->~T();
+            *t_ = std::forward<U>(cpy);
         }
-        t_ = new (this->internal()) T(std::forward<U>(cpy));
+        else
+        {
+            t_ = new (this->internal()) T(std::forward<U>(cpy));
+        }
         return *this;
     }
 
@@ -139,9 +142,20 @@ struct breaker_t : private Storage<breaker_t<T, Storage> >
         {
             if (t_)
             {
-                t_->~T();
+                if (!rhs.t_)
+                {
+                    t_->~T();
+                    t_ = nullptr;
+                }
+                else
+                {
+                    *t_ = static_cast<apply_ref_from_to_t<U, T> >(*rhs.t_);
+                }
             }
-            t_ = rhs.t_ ? new (this->internal()) T(static_cast<apply_ref_from_to_t<U, T> >(*rhs.t_)) : nullptr;
+            else
+            {
+                t_ = new (this->internal()) T(static_cast<apply_ref_from_to_t<U, T> >(*rhs.t_));
+            }
         }
         return *this;
     }
