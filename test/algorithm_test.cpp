@@ -50,8 +50,10 @@ TEST(AlgorithmTest, StdAnyOf) {
 TEST(AlgorithmTest, BreakAnyOf) {
     using namespace broken_algo;
 
-    bool result = broken_algo::any_of(l.begin(), l.end(),
-             [](auto elem) -> breaker_t<bool> {
+    auto lambda = [](auto f){
+        return broken_algo::any_of(l.begin(), l.end(), f);
+    };
+    ASSERT_FALSE(lambda([](auto elem) -> breaker_t<bool> {
         do
         {
         if (elem == 3)
@@ -62,7 +64,11 @@ TEST(AlgorithmTest, BreakAnyOf) {
         }
         while (0);
         return breaker;
-    }
-    );
-    ASSERT_FALSE(result);
+    }));
+    ASSERT_TRUE(lambda([](auto elem) -> breaker_t<bool> {
+        return elem == 4;
+    }));
+    ASSERT_FALSE(lambda([](auto elem) -> breaker_t<bool> {
+        return elem == 6;
+    }));
 }
