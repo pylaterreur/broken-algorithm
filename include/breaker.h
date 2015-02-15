@@ -6,6 +6,7 @@
 # include <cassert>
 # include "fake_instance.h"
 # include "apply_ref_from_to.h"
+# include "mono_allocator.h"
 
 namespace broken_algo
 {
@@ -30,25 +31,28 @@ struct breaker_underlying_type<breaker_t<T, Storage> >
     typedef T type;
 };
 
+template <typename breaker>
+using breaker_underlying_type_t = typename breaker_underlying_type<breaker>::type;
+
 template <typename breaker, class Enable = void>
 struct breaker_default_storage
 {};
 
 template <typename breaker>
-struct breaker_default_storage<breaker, typename std::enable_if<!std::is_void<typename breaker_underlying_type<breaker>::type>::value>::type>
+struct breaker_default_storage<breaker, std::enable_if_t<!std::is_void<breaker_underlying_type_t<breaker> >::value>>
 {
 protected:
-    typename breaker_underlying_type<breaker>::type *internal()
+    breaker_underlying_type_t<breaker> *internal()
     {
-        return const_cast<typename breaker_underlying_type<breaker>::type*>(const_cast<const breaker_default_storage&>(*this).internal());
+        return const_cast<breaker_underlying_type_t<breaker>*>(const_cast<const breaker_default_storage&>(*this).internal());
     }
 
-    const typename breaker_underlying_type<breaker>::type *internal() const
+    const breaker_underlying_type_t<breaker> *internal() const
     {
-        return reinterpret_cast<const typename breaker_underlying_type<breaker>::type *>(buff_.data());
+        return reinterpret_cast<const breaker_underlying_type_t<breaker> *>(buff_.data());
     }
 private:
-    std::array<unsigned char, sizeof(typename breaker_underlying_type<breaker>::type)> buff_;
+    std::array<unsigned char, sizeof(breaker_underlying_type_t<breaker>)> buff_;
 };
 
 template <typename T, template <typename...> class Storage = breaker_default_storage>
@@ -61,22 +65,22 @@ struct breaker_t : private Storage<breaker_t<T, Storage> >
     {}
 
     template <typename U,
-              typename std::enable_if<
+              std::enable_if_t<
                   std::is_same<
-                      typename std::decay<U>::type, T
+                      std::decay_t<U>, T
                       >::value
-                  >::type* = nullptr
+                  >* = nullptr
               >
     breaker_t(U&& cpy)
         : t_{new (this->internal()) T(std::forward<U>(cpy))}
     {}
 
     template <typename U,
-              typename std::enable_if<
+              std::enable_if_t<
                   std::is_same<
-                      typename std::decay<U>::type, T
+                      std::decay_t<U>, T
                       >::value
-                  >::type* = nullptr
+                  >* = nullptr
               >
     breaker_t &operator=(U&& cpy)
     {
@@ -92,20 +96,20 @@ struct breaker_t : private Storage<breaker_t<T, Storage> >
     }
 
     template <typename U,
-              typename std::enable_if<
-                  is_breaker<typename std::decay<U>::type>::value
-                  && std::is_same<typename breaker_underlying_type<typename std::decay<U>::type>::type, T>::value
-                  >::type* = nullptr
+              std::enable_if_t<
+                  is_breaker<std::decay_t<U>>::value
+                  && std::is_same<breaker_underlying_type_t<std::decay_t<U>>, T>::value
+                  >* = nullptr
               >
     breaker_t(U&& rhs)
         : t_(rhs.t_ ? new (this->internal()) T(static_cast<apply_ref_from_to_t<U, T> >(*rhs.t_)) : nullptr)
     {}
 
     template <typename U,
-              typename std::enable_if<
-                  is_breaker<typename std::decay<U>::type>::value
-                  && std::is_same<typename breaker_underlying_type<typename std::decay<U>::type>::type, T>::value
-                  >::type* = nullptr
+              std::enable_if_t<
+                  is_breaker<std::decay_t<U>>::value
+                  && std::is_same<breaker_underlying_type_t<std::decay_t<U>>, T>::value
+                  >* = nullptr
               >
     breaker_t &operator=(U&& rhs)
     {
