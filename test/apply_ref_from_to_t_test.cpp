@@ -1,4 +1,3 @@
-#include <array>
 #include <utility>
 #include <type_traits>
 #include <gtest/gtest.h>
