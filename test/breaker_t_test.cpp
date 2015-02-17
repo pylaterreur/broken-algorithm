@@ -118,4 +118,24 @@ TEST(BreakerTest, StorageAgnostism) {
         ASSERT_TRUE(deleted);
     }
 
+    {
+        bool deleted = false;
+        struct S
+        {
+            bool *deleted_;
+            S(bool &deleted) : deleted_(&deleted) {}
+            ~S() { if (deleted_) *deleted_ = true; }
+            S() = delete;
+            S(const S&cpy) = delete;
+            S(S&& cpy) : deleted_(cpy.deleted_) { cpy.deleted_ = nullptr; }
+        };
+
+        {
+            breaker_t<S, std::allocator> b(S{deleted});
+            ASSERT_FALSE(deleted);
+        }
+        ASSERT_TRUE(deleted);
+    }
+
+
 }
