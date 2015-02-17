@@ -1,6 +1,7 @@
 #ifndef BROKEN_ALGO__BREAKER_H_
 # define BROKEN_ALGO__BREAKER_H_
 
+# include <functional>
 # include <type_traits>
 # include <array>
 # include <cassert>
@@ -11,22 +12,22 @@
 namespace broken_algo
 {
 
-template <typename T, template <typename...> class Storage>
+template <typename T, template <typename...> class Allocator>
 struct breaker_t;
 
 template <typename T>
 struct is_breaker : std::false_type
 {};
 
-template <typename T, template <typename...> class Storage>
-struct is_breaker<breaker_t<T, Storage> > : std::true_type
+template <typename T, template <typename...> class Allocator>
+struct is_breaker<breaker_t<T, Allocator> > : std::true_type
 {};
 
 template <typename breaker>
 struct breaker_underlying_type;
 
-template <typename T, template <typename...> class Storage>
-struct breaker_underlying_type<breaker_t<T, Storage> >
+template <typename T, template <typename...> class Allocator>
+struct breaker_underlying_type<breaker_t<T, Allocator> >
 {
     typedef T type;
 };
@@ -34,29 +35,8 @@ struct breaker_underlying_type<breaker_t<T, Storage> >
 template <typename breaker>
 using breaker_underlying_type_t = typename breaker_underlying_type<breaker>::type;
 
-template <typename breaker, class Enable = void>
-struct breaker_default_storage
-{};
-
-template <typename breaker>
-struct breaker_default_storage<breaker, std::enable_if_t<!std::is_void<breaker_underlying_type_t<breaker> >::value>>
-{
-protected:
-    breaker_underlying_type_t<breaker> *internal()
-    {
-        return const_cast<breaker_underlying_type_t<breaker>*>(const_cast<const breaker_default_storage&>(*this).internal());
-    }
-
-    const breaker_underlying_type_t<breaker> *internal() const
-    {
-        return reinterpret_cast<const breaker_underlying_type_t<breaker> *>(buff_.data());
-    }
-private:
-    std::array<unsigned char, sizeof(breaker_underlying_type_t<breaker>)> buff_;
-};
-
-template <typename T, template <typename...> class Storage = breaker_default_storage>
-struct breaker_t : private Storage<breaker_t<T, Storage> >
+template <typename T, template <typename...> class Allocator = mono_allocator>
+struct breaker_t
 {
     template <typename, template <typename...> class>
     friend class breaker_t;
@@ -72,8 +52,9 @@ struct breaker_t : private Storage<breaker_t<T, Storage> >
                   >* = nullptr
               >
     breaker_t(U&& cpy)
-        : t_{new (this->internal()) T(std::forward<U>(cpy))}
-    {}
+        : t_(make_unique(std::forward<U>(cpy)))
+    {
+    }
 
     template <typename U,
               std::enable_if_t<
@@ -90,25 +71,29 @@ struct breaker_t : private Storage<breaker_t<T, Storage> >
         }
         else
         {
-            t_ = new (this->internal()) T(std::forward<U>(cpy));
+            t_ = make_unique(std::forward<U>(cpy));
         }
         return *this;
     }
 
     template <typename U,
               std::enable_if_t<
-                  is_breaker<std::decay_t<U>>::value
-                  && std::is_same<breaker_underlying_type_t<std::decay_t<U>>, T>::value
+                  is_breaker<std::decay_t<U> >::value
+                  && std::is_same<breaker_underlying_type_t<std::decay_t<U> >, T>::value
                   >* = nullptr
               >
     breaker_t(U&& rhs)
-        : t_(rhs.t_ ? new (this->internal()) T(static_cast<apply_ref_from_to_t<U, T> >(*rhs.t_)) : nullptr)
-    {}
+    {
+        if (rhs.t_)
+        {
+            t_ = make_unique(static_cast<apply_ref_from_to_t<U, T> >(*rhs.t_));
+        }
+    }
 
     template <typename U,
               std::enable_if_t<
-                  is_breaker<std::decay_t<U>>::value
-                  && std::is_same<breaker_underlying_type_t<std::decay_t<U>>, T>::value
+                  is_breaker<std::decay_t<U> >::value
+                  && std::is_same<breaker_underlying_type_t<std::decay_t<U> >, T>::value
                   >* = nullptr
               >
     breaker_t &operator=(U&& rhs)
@@ -119,8 +104,7 @@ struct breaker_t : private Storage<breaker_t<T, Storage> >
             {
                 if (!rhs.t_)
                 {
-                    t_->~T();
-                    t_ = nullptr;
+                    t_.reset();
                 }
                 else
                 {
@@ -129,7 +113,7 @@ struct breaker_t : private Storage<breaker_t<T, Storage> >
             }
             else
             {
-                t_ = new (this->internal()) T(static_cast<apply_ref_from_to_t<U, T> >(*rhs.t_));
+                t_ = make_unique(static_cast<apply_ref_from_to_t<U, T> >(*rhs.t_));
             }
         }
         return *this;
@@ -154,7 +138,17 @@ struct breaker_t : private Storage<breaker_t<T, Storage> >
     }
 
 private:
-    T* t_;
+    Allocator<T> allocator_;
+    std::function<void(T*)> deleter_{[this](T* ptr)
+    {
+            this->allocator_.deallocate(ptr, 1);
+    }};
+    template <typename ...Args>
+    auto make_unique(Args&&... args)
+    {
+        return decltype(t_)(new (this->allocator_.allocate(1)) T(std::forward<Args>(args)...), deleter_);
+    }
+    std::unique_ptr<T, decltype(deleter_) > t_;
 };
 
 template <template <typename...> class Storage>

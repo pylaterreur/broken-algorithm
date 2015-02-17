@@ -1,7 +1,14 @@
-#include <gtest/gtest.h>
-#include "breaker.h"
+#ifndef MONO_ALLOCATOR_H_
+# define MONO_ALLOCATOR_H_
 
-namespace custom
+# include <cassert>
+# include <memory>
+# include <type_traits>
+
+#include <iostream>
+#include <ios>
+
+namespace broken_algo
 {
 template <typename T>
 struct mono_allocator
@@ -70,12 +77,6 @@ struct mono_allocator
     {
         return !operator==(rhs);
     }
-
-    const T *GetInternalPointer() const noexcept
-    {
-        return reinterpret_cast<const T*>(buff_.data());
-    }
-
 private:
     std::array<char, sizeof(value_type)> buff_;
 #ifndef NDEBUG
@@ -84,19 +85,5 @@ private:
 };
 }
 
-TEST(BreakerTest, StorageAgnostism) {
-    using namespace broken_algo;
 
-    {
-        breaker_t<bool> b(false);
-        breaker_t<bool> b2 = b;
-        b2 = b;
-    }
-    {
-        breaker_t<int, custom::mono_allocator> b(42);
-        breaker_t<int, custom::mono_allocator> b2 = b;
-        b2 = b;
-        ASSERT_NE(&*b, &*b2) << "copy/assignment fails";
-    }
-
-}
+#endif // !MONO_ALLOCATOR_H_

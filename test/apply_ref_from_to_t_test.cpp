@@ -32,11 +32,13 @@ TEST(apply_ref_from_to_tTest, Foo) {
     struct To {};
     using namespace broken_algo;
 
-    constexpr auto tests = {
-        std::make_pair(std::is_same<apply_ref_from_to_t<From&, To>, To& >()(), "From& -> To&")
-        , std::make_pair(std::is_same<apply_ref_from_to_t<From&&, To>, To&& >()(), "From&& -> To&&")
-        , std::make_pair(std::is_same<apply_ref_from_to_t<const From&, To>, const To& >()(), "const From& -> const To&")
-        , std::make_pair(std::is_same<apply_ref_from_to_t<const From&&, To>, const To&& >()(), "const From&& -> const To&&")
+    using Pair = std::pair<bool, char const * const>;
+
+    auto tests = {
+        Pair(std::is_same<apply_ref_from_to_t<From&, To>, To& >::value, "From& -> To&")
+        , Pair(std::is_same<apply_ref_from_to_t<From&&, To>, To&& >::value, "From&& -> To&&")
+        , Pair(std::is_same<apply_ref_from_to_t<const From&, To>, const To& >::value, "const From& -> const To&")
+        , Pair(std::is_same<apply_ref_from_to_t<const From&&, To>, const To&& >::value, "const From&& -> const To&&")
     };
 
 #ifdef WITH_STATIC_ASSERT
