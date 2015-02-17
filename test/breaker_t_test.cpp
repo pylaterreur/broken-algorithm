@@ -113,6 +113,7 @@ TEST(BreakerTest, StorageAgnostism) {
 
         {
             breaker_t<S> b(S{deleted});
+            ASSERT_FALSE(deleted);
         }
         ASSERT_TRUE(deleted);
     }
