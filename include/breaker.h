@@ -141,6 +141,7 @@ private:
     Allocator<T> allocator_;
     std::function<void(T*)> deleter_{[this](T* ptr)
     {
+            ptr->~T();
             this->allocator_.deallocate(ptr, 1);
     }};
     template <typename ...Args>

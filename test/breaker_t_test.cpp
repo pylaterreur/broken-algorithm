@@ -99,4 +99,22 @@ TEST(BreakerTest, StorageAgnostism) {
         ASSERT_NE(&*b, &*b2) << "copy/assignment fails";
     }
 
+    {
+        bool deleted = false;
+        struct S
+        {
+            bool *deleted_;
+            S(bool &deleted) : deleted_(&deleted) {}
+            ~S() { if (deleted_) *deleted_ = true; }
+            S() = delete;
+            S(const S&cpy) = delete;
+            S(S&& cpy) : deleted_(cpy.deleted_) { cpy.deleted_ = nullptr; }
+        };
+
+        {
+            breaker_t<S> b(S{deleted});
+        }
+        ASSERT_TRUE(deleted);
+    }
+
 }
