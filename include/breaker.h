@@ -5,7 +5,6 @@
 # include <type_traits>
 # include <array>
 # include <cassert>
-# include "fake_instance.h"
 # include "apply_ref_from_to.h"
 # include "mono_allocator.h"
 
